@@ -1,66 +1,41 @@
 pipeline {
     agent any
 
-    /**********************
-     *  Global variables  *
-     **********************/
     environment {
-        // Injects $DOCKERHUB_CREDENTIALS_USR and $DOCKERHUB_CREDENTIALS_PSW
         DOCKERHUB_CREDENTIALS = credentials('DOCKERHUB_CREDS')
-
-        // Injects $KUBECONFIG (file path) at runtime
         KUBECONFIG_FILE = credentials('K8S_MINIKUBE')
-
-        // Tag every image with the current build number, e.g. v4
         IMAGE_TAG = "v${BUILD_NUMBER}"
     }
 
     stages {
-
-        /********** 1. Checkout **********/
-        stage('Checkout') {
-            steps {
-                git url: 'https://github.com/VaibhavGit10/Assignment_08_Devops.git',
-                    branch: 'main'
-            }
-        }
-
-        /********** 2. Build & Push BACKEND **********/
         stage('Build & Push Backend Image') {
             steps {
                 script {
                     docker.withRegistry('https://index.docker.io/v1/', 'DOCKERHUB_CREDS') {
-
-                        // ABSOLUTE paths so Docker can always find the file
                         def backendImage = docker.build(
-                            "${env.DOCKERHUB_CREDENTIALS_USR}/mern-backend:${env.IMAGE_TAG}",
-                            "-f ${env.WORKSPACE}/backend/Dockerfile ${env.WORKSPACE}/backend"
+                            "${env.DOCKERHUB_CREDENTIALS_USR}/mern-backend:${IMAGE_TAG}",
+                            "backend"
                         )
-
                         backendImage.push()
                     }
                 }
             }
         }
 
-        /********** 3. Build & Push FRONTEND **********/
         stage('Build & Push Frontend Image') {
             steps {
                 script {
                     docker.withRegistry('https://index.docker.io/v1/', 'DOCKERHUB_CREDS') {
-
                         def frontendImage = docker.build(
-                            "${env.DOCKERHUB_CREDENTIALS_USR}/mern-frontend:${env.IMAGE_TAG}",
-                            "-f ${env.WORKSPACE}/frontend/Dockerfile ${env.WORKSPACE}/frontend"
+                            "${env.DOCKERHUB_CREDENTIALS_USR}/mern-frontend:${IMAGE_TAG}",
+                            "frontend"
                         )
-
                         frontendImage.push()
                     }
                 }
             }
         }
 
-        /********** 4. Deploy with Helm **********/
         stage('Deploy to Minikube using Helm') {
             steps {
                 withCredentials([file(credentialsId: 'K8S_MINIKUBE', variable: 'KCFG')]) {
@@ -68,15 +43,14 @@ pipeline {
                         export KUBECONFIG=${KCFG}
                         cd helm-chart/mern-chart
                         helm upgrade --install mern-release . \
-                          --set backend.image=${env.DOCKERHUB_CREDENTIALS_USR}/mern-backend:${env.IMAGE_TAG} \
-                          --set frontend.image=${env.DOCKERHUB_CREDENTIALS_USR}/mern-frontend:${env.IMAGE_TAG}
+                          --set backend.image=${env.DOCKERHUB_CREDENTIALS_USR}/mern-backend:${IMAGE_TAG} \
+                          --set frontend.image=${env.DOCKERHUB_CREDENTIALS_USR}/mern-frontend:${IMAGE_TAG}
                     """
                 }
             }
         }
     }
 
-    /********** 5. Post‑build notifications **********/
     post {
         success {
             echo '🎉 Deployment successful!'
