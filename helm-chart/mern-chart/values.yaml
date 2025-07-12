@@ -1,0 +1,13 @@
+backend:
+  replicaCount: 2
+  image:
+    repository: vaibhav7887/backend
+    tag: latest
+  env:
+    mongoUri: mongodb://mongo-service:27017/learnerdb
+
+frontend:
+  replicaCount: 2
+  image:
+    repository: vaibhav7887/frontend
+    tag: latest
