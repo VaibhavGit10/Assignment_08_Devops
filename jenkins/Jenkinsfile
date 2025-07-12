@@ -58,9 +58,11 @@ pipeline {
         }
     }
 
-    post {
-        success {
-            echo '🎉 Deployment successful!'
-        }
-        failure {
-            echo '❌ Build or deploy failed
+   post {
+    success {
+        echo '🎉 Deployment successful!'
+    }
+    failure {
+        echo '❌ Build or deploy failed'
+    }
+}
