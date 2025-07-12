@@ -1,20 +1,19 @@
-# Use Node base image
 FROM node:16
 
-# Set working directory inside the container
+# Set working directory
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json (if available)
+# Copy package.json files
 COPY package*.json ./
 
-# Clean npm cache and install dependencies
-RUN npm cache clean --force && npm install
+# Install dependencies with relaxed peer rules
+RUN npm cache clean --force && npm install --legacy-peer-deps
 
-# Copy remaining source code
+# Copy all files
 COPY . .
 
-# Expose port 3000 (used by React dev server)
+# Expose app port
 EXPOSE 3000
 
-# Start the development server
+# Start app
 CMD ["npm", "start"]
