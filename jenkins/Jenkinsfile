@@ -47,22 +47,23 @@ pipeline {
             steps {
                 withCredentials([file(credentialsId: 'K8S_MINIKUBE', variable: 'KUBECONFIG')]) {
                     sh '''
-                    export KUBECONFIG=$KUBECONFIG
-                    cd helm-chart/mern-chart
-                    helm upgrade --install mern-release . \
-                      --set backend.image=${DOCKERHUB_USERNAME}/mern-backend:${IMAGE_TAG} \
-                      --set frontend.image=${DOCKERHUB_USERNAME}/mern-frontend:${IMAGE_TAG}
+                        export KUBECONFIG=$KUBECONFIG
+                        cd helm-chart/mern-chart
+                        helm upgrade --install mern-release . \
+                          --set backend.image=${DOCKERHUB_USERNAME}/mern-backend:${IMAGE_TAG} \
+                          --set frontend.image=${DOCKERHUB_USERNAME}/mern-frontend:${IMAGE_TAG}
                     '''
                 }
             }
         }
     }
 
-   post {
-    success {
-        echo '🎉 Deployment successful!'
-    }
-    failure {
-        echo '❌ Build or deploy failed'
+    post {
+        success {
+            echo '🎉 Deployment successful!'
+        }
+        failure {
+            echo '❌ Build or deploy failed'
+        }
     }
 }
