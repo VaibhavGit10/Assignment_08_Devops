@@ -48,8 +48,10 @@ pipeline {
                         export KUBECONFIG=${KCFG}
                         cd helm-chart/mern-chart
                         helm upgrade --install mern-release . \\
-                          --set backend.image=${DOCKERHUB_USER}/mern-backend:${IMAGE_TAG} \\
-                          --set frontend.image=${DOCKERHUB_USER}/mern-frontend:${IMAGE_TAG}
+                          --set backend.image.repository=${DOCKERHUB_USER}/mern-backend \\
+                          --set backend.image.tag=${IMAGE_TAG} \\
+                          --set frontend.image.repository=${DOCKERHUB_USER}/mern-frontend \\
+                          --set frontend.image.tag=${IMAGE_TAG}
                     """
                 }
             }
