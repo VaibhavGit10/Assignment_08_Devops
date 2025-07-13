@@ -1,99 +1,74 @@
 /*
  * ────────────────────────────────────────────────────────────────────────────────
- *  Jenkins Declarative Pipeline – MERN Build + Push + Helm Deploy to Minikube
+ *  Jenkins Declarative Pipeline – MERN Build + Push + Helm Deploy to Minikube
  * ────────────────────────────────────────────────────────────────────────────────
- *
- *  Prereqs on the Jenkins controller/agent:
- *  ▸ Docker CLI & daemon
- *  ▸ Helm v3.x
- *  ▸ kubectl (pointing to Minikube once KUBECONFIG is exported)
- *
- *  Credentials required in Jenkins:
- *  ▸ “DOCKERHUB_CREDS”  – username / password for Docker Hub
- *  ▸ “K8S_MINIKUBE”     – Secret‑File (the flattened kubeconfig you generated)
- *    (Manage Jenkins ▸ Credentials ▸ kind: “Secret file”)
  */
 
 pipeline {
-    /* ───────────────────────── AGENT ───────────────────────── */
     agent any
 
-    /* ────────────────────── GLOBAL ENV ─────────────────────── */
     environment {
-        IMAGE_TAG = "v${BUILD_NUMBER}"          // e.g. v23
+        IMAGE_TAG = "v${BUILD_NUMBER}"          // e.g. v21
     }
 
-    /* ───────────────────────── STAGES ──────────────────────── */
     stages {
 
-        /* ───── Build & Push BACKEND Docker image ───── */
+        /* ───────── Build & Push BACKEND ───────── */
         stage('Build & Push Backend Image') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'DOCKERHUB_CREDS',
-                    usernameVariable: 'DOCKERHUB_USER',
-                    passwordVariable: 'DOCKERHUB_PASS'
-                )]) {
+                withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_CREDS',
+                                                  usernameVariable: 'DOCKERHUB_USER',
+                                                  passwordVariable: 'DOCKERHUB_PASS')]) {
 
                     script {
                         docker.withRegistry('https://index.docker.io/v1/', 'DOCKERHUB_CREDS') {
-
-                            def backendImg = docker.build(
+                            def img = docker.build(
                                 "${DOCKERHUB_USER}/mern-backend:${IMAGE_TAG}",
                                 "-f ${env.WORKSPACE}/backend/Dockerfile ${env.WORKSPACE}/backend"
                             )
-
-                            backendImg.push()
+                            img.push()
                         }
                     }
                 }
             }
         }
 
-        /* ───── Build & Push FRONTEND Docker image ───── */
+        /* ───────── Build & Push FRONTEND ───────── */
         stage('Build & Push Frontend Image') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'DOCKERHUB_CREDS',
-                    usernameVariable: 'DOCKERHUB_USER',
-                    passwordVariable: 'DOCKERHUB_PASS'
-                )]) {
+                withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_CREDS',
+                                                  usernameVariable: 'DOCKERHUB_USER',
+                                                  passwordVariable: 'DOCKERHUB_PASS')]) {
 
                     script {
                         docker.withRegistry('https://index.docker.io/v1/', 'DOCKERHUB_CREDS') {
-
-                            def frontendImg = docker.build(
+                            def img = docker.build(
                                 "${DOCKERHUB_USER}/mern-frontend:${IMAGE_TAG}",
                                 "-f ${env.WORKSPACE}/frontend/Dockerfile ${env.WORKSPACE}/frontend"
                             )
-
-                            frontendImg.push()
+                            img.push()
                         }
                     }
                 }
             }
         }
 
-        /* ───────────── Deploy to Minikube via Helm ───────────── */
+        /* ───────────── Deploy with Helm ─────────── */
         stage('Deploy to Minikube using Helm') {
             steps {
                 withCredentials([
-                    file(credentialsId: 'K8S_MINIKUBE', variable: 'KCFG'),
-                    usernamePassword(
-                        credentialsId: 'DOCKERHUB_CREDS',
-                        usernameVariable: 'DOCKERHUB_USER',
-                        passwordVariable: 'DOCKERHUB_PASS'
-                    )
+                    file(credentialsId: 'K8S_MINIKUBE',   variable: 'KCFG'),
+                    usernamePassword(credentialsId: 'DOCKERHUB_CREDS',
+                                     usernameVariable: 'DOCKERHUB_USER',
+                                     passwordVariable: 'DOCKERHUB_PASS')
                 ]) {
 
                     sh """
-                        # Export kube‑context for Helm / kubectl
+                        set -e
                         export KUBECONFIG="${KCFG}"
 
-                        # Always run Helm from the chart root
                         cd ${WORKSPACE}/helm-chart/mern-chart
 
-                        # Install or upgrade the release with precise image keys
                         helm upgrade --install mern-release . \
                           --set backend.image.repository=${DOCKERHUB_USER}/mern-backend \
                           --set backend.image.tag=${IMAGE_TAG} \
@@ -105,13 +80,8 @@ pipeline {
         }
     }
 
-    /* ───────────────────────── POST ────────────────────────── */
     post {
-        success {
-            echo '🎉 Deployment successful!'
-        }
-        failure {
-            echo '❌ Build or deploy failed'
-        }
+        success { echo '🎉 Deployment successful!' }
+        failure { echo '❌ Build or deploy failed' }
     }
 }
