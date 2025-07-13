@@ -2,18 +2,24 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Release.Name }}-frontend
+  labels:
+    app: frontend
+    release: {{ .Release.Name }}
 spec:
   replicas: {{ .Values.frontend.replicaCount }}
   selector:
     matchLabels:
       app: frontend
+      release: {{ .Release.Name }}
   template:
     metadata:
       labels:
         app: frontend
+        release: {{ .Release.Name }}
     spec:
       containers:
         - name: frontend
           image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
           ports:
             - containerPort: 3000
+
