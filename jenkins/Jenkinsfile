@@ -2,21 +2,21 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('DOCKERHUB_CREDS')
-        KUBECONFIG_FILE = credentials('K8S_MINIKUBE')
         IMAGE_TAG = "v${BUILD_NUMBER}"
     }
 
     stages {
         stage('Build & Push Backend Image') {
             steps {
-                script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'DOCKERHUB_CREDS') {
-                        def backendImage = docker.build(
-                            "${DOCKERHUB_CREDENTIALS_USR}/mern-backend:${IMAGE_TAG}",
-                            "-f ${env.WORKSPACE}/backend/Dockerfile ${env.WORKSPACE}/backend"
-                        )
-                        backendImage.push()
+                withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_CREDS', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+                    script {
+                        docker.withRegistry('https://index.docker.io/v1/', 'DOCKERHUB_CREDS') {
+                            def backendImage = docker.build(
+                                "${DOCKERHUB_USER}/mern-backend:${IMAGE_TAG}",
+                                "-f ${env.WORKSPACE}/backend/Dockerfile ${env.WORKSPACE}/backend"
+                            )
+                            backendImage.push()
+                        }
                     }
                 }
             }
@@ -24,13 +24,15 @@ pipeline {
 
         stage('Build & Push Frontend Image') {
             steps {
-                script {
-                    docker.withRegistry('https://index.docker.io/v1/', 'DOCKERHUB_CREDS') {
-                        def frontendImage = docker.build(
-                            "${DOCKERHUB_CREDENTIALS_USR}/mern-frontend:${IMAGE_TAG}",
-                            "-f ${env.WORKSPACE}/frontend/Dockerfile ${env.WORKSPACE}/frontend"
-                        )
-                        frontendImage.push()
+                withCredentials([usernamePassword(credentialsId: 'DOCKERHUB_CREDS', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+                    script {
+                        docker.withRegistry('https://index.docker.io/v1/', 'DOCKERHUB_CREDS') {
+                            def frontendImage = docker.build(
+                                "${DOCKERHUB_USER}/mern-frontend:${IMAGE_TAG}",
+                                "-f ${env.WORKSPACE}/frontend/Dockerfile ${env.WORKSPACE}/frontend"
+                            )
+                            frontendImage.push()
+                        }
                     }
                 }
             }
@@ -38,13 +40,16 @@ pipeline {
 
         stage('Deploy to Minikube using Helm') {
             steps {
-                withCredentials([file(credentialsId: 'K8S_MINIKUBE', variable: 'KCFG')]) {
+                withCredentials([
+                    file(credentialsId: 'K8S_MINIKUBE', variable: 'KCFG'),
+                    usernamePassword(credentialsId: 'DOCKERHUB_CREDS', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')
+                ]) {
                     sh """
                         export KUBECONFIG=${KCFG}
                         cd helm-chart/mern-chart
                         helm upgrade --install mern-release . \\
-                          --set backend.image=${DOCKERHUB_CREDENTIALS_USR}/mern-backend:${IMAGE_TAG} \\
-                          --set frontend.image=${DOCKERHUB_CREDENTIALS_USR}/mern-frontend:${IMAGE_TAG}
+                          --set backend.image=${DOCKERHUB_USER}/mern-backend:${IMAGE_TAG} \\
+                          --set frontend.image=${DOCKERHUB_USER}/mern-frontend:${IMAGE_TAG}
                     """
                 }
             }
